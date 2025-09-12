@@ -1,0 +1,57 @@
+{
+  "total": 58,
+  "passed": 56,
+  "failed": 2,
+  "tests": [
+    {
+      "name": "File Structure",
+      "passed": 15,
+      "failed": 1
+    },
+    {
+      "name": "Environment Config",
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "name": "SQL Files",
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "name": "API Endpoints",
+      "passed": 3,
+      "failed": 1
+    },
+    {
+      "name": "UI Components",
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "name": "Database Integration",
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "name": "Health Check",
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "name": "Project Build",
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "name": "SQL Test Queries",
+      "passed": 6,
+      "failed": 0
+    },
+    {
+      "name": "Full System",
+      "passed": 6,
+      "failed": 0
+    }
+  ]
+}

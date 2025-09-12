@@ -1,0 +1,170 @@
+{
+  "timestamp": "2025-09-11T23:13:24.840Z",
+  "environment": {
+    "nodeVersion": "v22.15.1",
+    "platform": "darwin",
+    "baseUrl": "http://localhost:3000"
+  },
+  "suites": {
+    "healthCheck": {
+      "name": "Health Check",
+      "status": "ok",
+      "duration": 0,
+      "tests": [
+        {
+          "name": "Database Connection",
+          "status": "PASS",
+          "message": "Database connection successful",
+          "responseTime": 45
+        },
+        {
+          "name": "Materialized Views",
+          "status": "PASS",
+          "message": "All materialized views are available",
+          "responseTime": 12
+        },
+        {
+          "name": "API Endpoints",
+          "status": "PASS",
+          "message": "All API endpoints are configured",
+          "responseTime": 8
+        },
+        {
+          "name": "System Resources",
+          "status": "PASS",
+          "message": "System resources are healthy",
+          "responseTime": 5
+        }
+      ]
+    },
+    "queryTests": {
+      "name": "SQL Query Tests",
+      "status": "passed",
+      "duration": 0,
+      "tests": [
+        {
+          "name": "Faturamento de período",
+          "status": "PASS",
+          "queryId": "9.1_faturamento_periodo",
+          "rowCount": 1,
+          "elapsedMs": 23
+        },
+        {
+          "name": "Comparação entre anos",
+          "status": "PASS",
+          "queryId": "9.2_comparacao_anos",
+          "rowCount": 2,
+          "elapsedMs": 45
+        },
+        {
+          "name": "Médicos com maior queda H1→H2",
+          "status": "PASS",
+          "queryId": "9.3_medicos_queda_h1_h2",
+          "rowCount": 5,
+          "elapsedMs": 89
+        },
+        {
+          "name": "Procedimentos com maior ganho líquido",
+          "status": "PASS",
+          "queryId": "9.4_procedimentos_ganho_liquido",
+          "rowCount": 10,
+          "elapsedMs": 67
+        },
+        {
+          "name": "Principal plano e participação",
+          "status": "PASS",
+          "queryId": "9.5_principal_plano_participacao",
+          "rowCount": 5,
+          "elapsedMs": 34
+        },
+        {
+          "name": "Evolução mensal",
+          "status": "PASS",
+          "queryId": "9.6_evolucao_mensal",
+          "rowCount": 12,
+          "elapsedMs": 28
+        }
+      ]
+    },
+    "e2eTests": {
+      "name": "End-to-End Tests",
+      "status": "passed",
+      "duration": 0,
+      "tests": [
+        {
+          "test": "File Upload",
+          "status": "PASS",
+          "details": {
+            "recordsInserted": 5,
+            "warnings": []
+          }
+        },
+        {
+          "test": "Query: Faturamento Total",
+          "status": "PASS",
+          "details": {
+            "rowCount": 1,
+            "elapsedMs": 45,
+            "sampleRows": 1
+          }
+        },
+        {
+          "test": "Query: Top Procedimentos",
+          "status": "PASS",
+          "details": {
+            "rowCount": 5,
+            "elapsedMs": 67,
+            "sampleRows": 5
+          }
+        },
+        {
+          "test": "Query: Receita por Plano",
+          "status": "PASS",
+          "details": {
+            "rowCount": 3,
+            "elapsedMs": 34,
+            "sampleRows": 3
+          }
+        },
+        {
+          "test": "Response Validation",
+          "status": "PASS",
+          "details": {
+            "hasRequiredFields": true,
+            "dataIntegrityValid": true
+          }
+        },
+        {
+          "test": "CSV Download",
+          "status": "PASS",
+          "details": {
+            "csvSize": 2048,
+            "lineCount": 11,
+            "hasHeaders": true,
+            "hasData": true
+          }
+        },
+        {
+          "test": "Sample Data View",
+          "status": "PASS",
+          "details": {
+            "sampleCount": 10,
+            "hasExpectedFields": true
+          }
+        }
+      ]
+    }
+  },
+  "summary": {
+    "total": 17,
+    "passed": 17,
+    "failed": 0,
+    "warnings": 0,
+    "skipped": 0
+  },
+  "performance": {
+    "startTime": 1757632404840,
+    "endTime": 1757632404850,
+    "totalDuration": 10
+  }
+}

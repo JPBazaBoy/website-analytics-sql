@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendMessage, ChatMessage } from '@/lib/ai';
+import { ChatState, defaultState } from '@/lib/chat-state';
 
 export async function POST(request: NextRequest) {
   try {
-    const { message, history = [] } = await request.json();
+    const { message, history = [], state } = await request.json();
 
     if (!message || typeof message !== 'string') {
       return NextResponse.json(
@@ -27,13 +28,32 @@ export async function POST(request: NextRequest) {
       timestamp: new Date(msg.timestamp || Date.now())
     }));
 
-    // Envia mensagem usando o orquestrador
-    const result = await sendMessage(message, conversationHistory);
+    // Usar estado padrão se não foi fornecido
+    const currentState: ChatState = state || defaultState();
+
+    // Envia mensagem usando o orquestrador com estado
+    const result = await sendMessage(message, conversationHistory, currentState);
+
+    // Validar que houve SQL gerada
+    if (result.sqlQueries.length === 0) {
+      return NextResponse.json(
+        {
+          error: 'Não foi possível gerar SQL para sua pergunta. Por favor, seja mais específico.',
+          response: '',
+          sqlQueries: [],
+          sqlResults: [],
+          updatedState: currentState,
+          retries: result.retries
+        },
+        { status: 400 }
+      );
+    }
 
     // Log para debug
     console.log(`[CHAT API] Pergunta: ${message}`);
     console.log(`[CHAT API] SQL geradas: ${result.sqlQueries.length}`);
     console.log(`[CHAT API] Retries: ${result.retries}`);
+    console.log(`[CHAT API] Estado atualizado:`, result.updatedState);
 
     return NextResponse.json(result);
 
@@ -60,6 +80,7 @@ export async function POST(request: NextRequest) {
         response: '',
         sqlQueries: [],
         sqlResults: [],
+        updatedState: defaultState(),
         retries: 0
       },
       { status: 500 }

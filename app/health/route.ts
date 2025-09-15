@@ -312,4 +312,4 @@ export async function GET(request: NextRequest): Promise<NextResponse<HealthResp
 }
 
 // Export for testing
-export { runHealthChecks };
+// Export removido - runHealthChecks é usado internamente

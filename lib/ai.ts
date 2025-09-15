@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import JSON5 from 'json5';
+import { ChatState, ChatHistoryItem, defaultState, mergeState, summarizeStateForLLM, compactHistory } from './chat-state';
 
 // Configuração
 const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
@@ -32,6 +33,7 @@ interface PlannerResult {
   sql: string[];
   rationale: string;
   final_answer_hint: string;
+  state?: Partial<ChatState>; // Atualizações de estado detectadas
 }
 
 /**
@@ -126,6 +128,60 @@ LIMIT ${n}`],
 }
 
 /**
+ * Extrai atualizações de estado do JSON
+ */
+function extractStateUpdates(parsed: any): Partial<ChatState> | undefined {
+  if (!parsed.state || typeof parsed.state !== 'object') {
+    return undefined;
+  }
+
+  try {
+    const updates: Partial<ChatState> = {};
+
+    // Período
+    if (parsed.state.period) {
+      updates.period = parsed.state.period;
+    }
+
+    // Filtros
+    if (parsed.state.planos) {
+      updates.planos = Array.isArray(parsed.state.planos) ? parsed.state.planos : [parsed.state.planos];
+    }
+    if (parsed.state.medicos) {
+      updates.medicos = Array.isArray(parsed.state.medicos) ? parsed.state.medicos : [parsed.state.medicos];
+    }
+    if (parsed.state.procedimentos) {
+      updates.procedimentos = Array.isArray(parsed.state.procedimentos) ? parsed.state.procedimentos : [parsed.state.procedimentos];
+    }
+
+    // Métrica
+    if (parsed.state.metric) {
+      updates.metric = parsed.state.metric;
+    }
+
+    // Agrupamento
+    if (parsed.state.groupBy !== undefined) {
+      updates.groupBy = parsed.state.groupBy;
+    }
+
+    // Top N
+    if (parsed.state.topN !== undefined) {
+      updates.topN = parsed.state.topN;
+    }
+
+    // Comparação
+    if (parsed.state.compare !== undefined) {
+      updates.compare = parsed.state.compare;
+    }
+
+    return Object.keys(updates).length > 0 ? updates : undefined;
+  } catch (e) {
+    console.log('[STATE] Erro ao extrair estado:', e);
+    return undefined;
+  }
+}
+
+/**
  * Sanitiza e parseia JSON do planner com tolerância a erros
  */
 function parsePlannerJson(text: string): PlannerResult | null {
@@ -149,7 +205,8 @@ function parsePlannerJson(text: string): PlannerResult | null {
       return {
         sql: parsed.sql,
         rationale: parsed.rationale || 'Auto-gerado',
-        final_answer_hint: parsed.final_answer_hint || ''
+        final_answer_hint: parsed.final_answer_hint || '',
+        state: extractStateUpdates(parsed)
       };
     }
   } catch (e) {
@@ -173,7 +230,8 @@ function parsePlannerJson(text: string): PlannerResult | null {
         return {
           sql: parsed.sql,
           rationale: parsed.rationale || 'Auto-gerado',
-          final_answer_hint: parsed.final_answer_hint || ''
+          final_answer_hint: parsed.final_answer_hint || '',
+          state: extractStateUpdates(parsed)
         };
       }
     } catch (e) {
@@ -212,6 +270,7 @@ function parsePlannerJson(text: string): PlannerResult | null {
 async function planner(
   question: string,
   history: ChatMessage[] = [],
+  state: ChatState = defaultState(),
   retry: number = 0
 ): Promise<PlannerResult> {
   // Verificar se é uma query Top-N comum
@@ -226,12 +285,39 @@ async function planner(
 
   console.log(`[PLANNER] Tentativa ${retry + 1} - Pergunta: ${question}`);
 
+  // Montar contexto com estado e histórico
+  const contextParts: string[] = [];
+
+  // Adicionar resumo do estado se não for vazio
+  const stateSummary = summarizeStateForLLM(state);
+  if (stateSummary !== 'Estado inicial (sem filtros)') {
+    contextParts.push(`CONTEXTO ATUAL: ${stateSummary}`);
+  }
+
+  // Adicionar histórico compacto
+  const compactedHistory = compactHistory(history.map(h => ({
+    role: h.role as 'user' | 'assistant',
+    content: h.content,
+    timestamp: h.timestamp.toISOString()
+  })));
+
+  if (compactedHistory.length > 0) {
+    const historyText = compactedHistory
+      .map(h => `${h.role === 'user' ? 'Usuário' : 'Assistente'}: ${h.content.substring(0, 100)}`)
+      .join('\n');
+    contextParts.push(`HISTÓRICO RECENTE:\n${historyText}`);
+  }
+
+  const fullQuestion = contextParts.length > 0
+    ? `${contextParts.join('\n\n')}\n\nPERGUNTA ATUAL: ${question}`
+    : question;
+
   const messages = [
     {
       role: 'user',
       content: retry === 0
-        ? question
-        : `${question}\n\nVocê OBRIGATORIAMENTE deve retornar JSON puro, sem markdown, com o campo sql (array de strings). Não inclua comentários.`
+        ? fullQuestion
+        : `${fullQuestion}\n\nVocê OBRIGATORIAMENTE deve retornar JSON puro, sem markdown, com o campo sql (array de strings). Não inclua comentários.`
     }
   ];
 
@@ -266,7 +352,7 @@ async function planner(
     if (!plan || !plan.sql || plan.sql.length === 0) {
       if (retry < MAX_RETRIES) {
         console.log('[PLANNER] Sem SQL válida, tentando novamente...');
-        return planner(question, history, retry + 1);
+        return planner(question, history, state, retry + 1);
       }
       throw new Error('Claude não gerou SQL após múltiplas tentativas');
     }
@@ -280,7 +366,7 @@ async function planner(
   } catch (error) {
     console.error('[PLANNER] Erro:', error);
     if (retry < MAX_RETRIES) {
-      return planner(question, history, retry + 1);
+      return planner(question, history, state, retry + 1);
     }
     throw error;
   }
@@ -439,11 +525,13 @@ IMPORTANTE: Use APENAS os dados dos resultados acima. Não invente números.`
  */
 export async function sendMessage(
   message: string,
-  history: ChatMessage[] = []
+  history: ChatMessage[] = [],
+  currentState: ChatState = defaultState()
 ): Promise<{
   response: string;
   sqlQueries: string[];
   sqlResults: SqlResult[];
+  updatedState: ChatState;
   error?: string;
   retries: number;
 }> {
@@ -451,7 +539,7 @@ export async function sendMessage(
 
   try {
     // 1. Planejar e gerar SQL
-    const plan = await planner(message, history);
+    const plan = await planner(message, history, currentState);
     retries = plan.sql.length === 0 ? 1 : 0;
 
     if (plan.sql.length === 0) {
@@ -459,6 +547,7 @@ export async function sendMessage(
         response: 'Não consegui gerar SQL para sua pergunta. Por favor, reformule de forma mais específica.',
         sqlQueries: [],
         sqlResults: [],
+        updatedState: currentState,
         error: 'Nenhuma SQL gerada',
         retries
       };
@@ -474,6 +563,7 @@ export async function sendMessage(
         response: 'Todas as consultas SQL falharam. Verifique se os dados estão disponíveis.',
         sqlQueries: plan.sql,
         sqlResults,
+        updatedState: currentState,
         error: 'Todas as SQL falharam',
         retries
       };
@@ -482,10 +572,18 @@ export async function sendMessage(
     // 3. Sintetizar resposta
     const response = await synthesize(message, sqlResults);
 
+    // 4. Aplicar atualizações de estado
+    const updatedState = plan.state
+      ? mergeState(currentState, plan.state)
+      : currentState;
+
+    console.log('[ORQUESTRADOR] Estado atualizado:', updatedState);
+
     return {
       response,
       sqlQueries: plan.sql,
       sqlResults,
+      updatedState,
       retries
     };
 
@@ -495,6 +593,7 @@ export async function sendMessage(
       response: 'Erro ao processar sua pergunta. Por favor, tente novamente.',
       sqlQueries: [],
       sqlResults: [],
+      updatedState: currentState,
       error: error instanceof Error ? error.message : 'Erro desconhecido',
       retries
     };

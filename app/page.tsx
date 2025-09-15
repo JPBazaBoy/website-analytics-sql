@@ -138,9 +138,14 @@ export default function HomePage() {
   };
 
   return (
-    <div className={`min-h-screen transition-colors duration-200 ${
+    <div className={`min-h-screen transition-colors duration-200 relative ${
       darkMode ? 'bg-gray-900 text-gray-100' : 'bg-gray-50 text-gray-900'
     }`}>
+      {/* Dark Mode Toggle - Fixed Position */}
+      <div className="fixed top-4 right-4 z-50">
+        <DarkModeToggle darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+      </div>
+
       <div className="max-w-4xl mx-auto p-6">
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
@@ -154,15 +159,12 @@ export default function HomePage() {
               Faça upload de arquivos Excel (.xlsx) com dados de exames.
             </p>
           </div>
-          <div className="flex gap-3 items-center">
-            <DarkModeToggle darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
-            <a
-              href="/chat"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold flex items-center gap-2"
-            >
-              💬 Ir para o Chat
-            </a>
-          </div>
+          <a
+            href="/chat"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold flex items-center gap-2"
+          >
+            💬 Ir para o Chat
+          </a>
         </div>
 
         {/* Upload Section */}

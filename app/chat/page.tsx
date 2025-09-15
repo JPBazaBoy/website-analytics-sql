@@ -266,9 +266,13 @@ export default function ChatPage() {
   );
 
   return (
-    <div className={`flex h-screen transition-colors duration-200 ${
+    <div className={`flex h-screen transition-colors duration-200 relative ${
       darkMode ? 'bg-gray-900' : 'bg-gray-50'
     }`}>
+      {/* Dark Mode Toggle - Fixed Position */}
+      <div className="fixed top-4 right-4 z-50">
+        <DarkModeToggle darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+      </div>
       {/* Sidebar */}
       <div className={`${sidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 overflow-hidden ${
         darkMode
@@ -320,20 +324,36 @@ export default function ChatPage() {
             : 'bg-white border-b border-gray-200'
         }`}>
           <div className="flex items-center justify-between mb-3">
-            <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className={`p-2 rounded-lg transition-colors ${
-                darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-              }`}
-              aria-label="Toggle sidebar"
-            >
-              ☰
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className={`p-2 rounded-lg transition-colors ${
+                  darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                }`}
+                aria-label="Toggle sidebar"
+              >
+                ☰
+              </button>
+              <a
+                href="/"
+                className={`p-2 rounded-lg transition-colors flex items-center gap-1 text-sm ${
+                  darkMode
+                    ? 'hover:bg-gray-700 text-gray-300'
+                    : 'hover:bg-gray-100 text-gray-600'
+                }`}
+                title="Voltar para Upload"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                <span className="hidden sm:inline">Upload</span>
+              </a>
+            </div>
             <h1 className={`text-xl font-semibold ${
               darkMode ? 'text-white' : 'text-gray-900'
             }`}>Chat Analítico SQL</h1>
             <div className="flex gap-2 items-center">
-              <DarkModeToggle darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
               <button
                 onClick={clearState}
                 className={`px-3 py-1 text-sm rounded-lg transition-colors ${

@@ -11,6 +11,8 @@ import {
   generateThreadId,
   generateThreadTitle
 } from '@/lib/chat-state';
+import { useDarkMode } from '@/lib/use-dark-mode';
+import { DarkModeToggle } from '@/components/dark-mode-toggle';
 
 interface Message {
   id: string;
@@ -32,6 +34,7 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(false);
   const [showDetails, setShowDetails] = useState<{ [key: string]: boolean }>({});
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const { darkMode, toggleDarkMode } = useDarkMode();
 
   // Estado da conversa
   const [currentThreadId, setCurrentThreadId] = useState<string>('');
@@ -242,12 +245,18 @@ export default function ChatPage() {
 
   // Renderizar chip
   const renderChip = (label: string, value: string | number, onRemove?: () => void) => (
-    <div className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800 mr-2 mb-2">
+    <div className={`inline-flex items-center px-3 py-1 rounded-full text-sm mr-2 mb-2 ${
+      darkMode
+        ? 'bg-blue-900 text-blue-200'
+        : 'bg-blue-100 text-blue-800'
+    }`}>
       <span>{label}: {value}</span>
       {onRemove && (
         <button
           onClick={onRemove}
-          className="ml-2 text-blue-600 hover:text-blue-800"
+          className={`ml-2 ${
+            darkMode ? 'text-blue-300 hover:text-blue-100' : 'text-blue-600 hover:text-blue-800'
+          }`}
           aria-label={`Remover ${label}`}
         >
           ×
@@ -257,9 +266,15 @@ export default function ChatPage() {
   );
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className={`flex h-screen transition-colors duration-200 ${
+      darkMode ? 'bg-gray-900' : 'bg-gray-50'
+    }`}>
       {/* Sidebar */}
-      <div className={`${sidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 bg-white border-r border-gray-200 overflow-hidden`}>
+      <div className={`${sidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 overflow-hidden ${
+        darkMode
+          ? 'bg-gray-800 border-r border-gray-700'
+          : 'bg-white border-r border-gray-200'
+      }`}>
         <div className="p-4">
           <button
             onClick={createNewThread}
@@ -268,18 +283,26 @@ export default function ChatPage() {
             Nova Conversa
           </button>
 
-          <h3 className="text-sm font-semibold text-gray-600 mb-2">Conversas Recentes</h3>
+          <h3 className={`text-sm font-semibold mb-2 ${
+            darkMode ? 'text-gray-400' : 'text-gray-600'
+          }`}>Conversas Recentes</h3>
           <div className="space-y-2">
             {threads.map(thread => (
               <button
                 key={thread.id}
                 onClick={() => loadThread(thread.id)}
-                className={`w-full text-left p-2 rounded-lg hover:bg-gray-100 ${
-                  thread.id === currentThreadId ? 'bg-gray-100' : ''
+                className={`w-full text-left p-2 rounded-lg transition-colors ${
+                  thread.id === currentThreadId
+                    ? darkMode ? 'bg-gray-700' : 'bg-gray-100'
+                    : ''
+                } ${
+                  darkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100'
                 }`}
               >
                 <div className="text-sm font-medium truncate">{thread.title}</div>
-                <div className="text-xs text-gray-500">
+                <div className={`text-xs ${
+                  darkMode ? 'text-gray-400' : 'text-gray-500'
+                }`}>
                   {new Date(thread.updatedAt).toLocaleDateString('pt-BR')}
                 </div>
               </button>
@@ -291,20 +314,33 @@ export default function ChatPage() {
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
         {/* Header com chips de estado */}
-        <div className="bg-white border-b border-gray-200 p-4">
+        <div className={`p-4 transition-colors duration-200 ${
+          darkMode
+            ? 'bg-gray-800 border-b border-gray-700'
+            : 'bg-white border-b border-gray-200'
+        }`}>
           <div className="flex items-center justify-between mb-3">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 hover:bg-gray-100 rounded-lg"
+              className={`p-2 rounded-lg transition-colors ${
+                darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+              }`}
               aria-label="Toggle sidebar"
             >
               ☰
             </button>
-            <h1 className="text-xl font-semibold">Chat Analítico SQL</h1>
-            <div className="flex gap-2">
+            <h1 className={`text-xl font-semibold ${
+              darkMode ? 'text-white' : 'text-gray-900'
+            }`}>Chat Analítico SQL</h1>
+            <div className="flex gap-2 items-center">
+              <DarkModeToggle darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
               <button
                 onClick={clearState}
-                className="px-3 py-1 text-sm bg-gray-200 hover:bg-gray-300 rounded-lg"
+                className={`px-3 py-1 text-sm rounded-lg transition-colors ${
+                  darkMode
+                    ? 'bg-gray-700 hover:bg-gray-600 text-gray-200'
+                    : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+                }`}
               >
                 Limpar Contexto
               </button>
@@ -347,7 +383,9 @@ export default function ChatPage() {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className={`flex-1 overflow-y-auto p-4 space-y-4 ${
+          darkMode ? 'bg-gray-900' : 'bg-gray-50'
+        }`}>
           {messages.map((message) => (
             <div
               key={message.id}
@@ -357,37 +395,61 @@ export default function ChatPage() {
                 className={`max-w-3xl rounded-lg p-4 ${
                   message.role === 'user'
                     ? 'bg-blue-600 text-white'
-                    : 'bg-white border border-gray-200'
+                    : darkMode
+                      ? 'bg-gray-800 border border-gray-700 text-gray-100'
+                      : 'bg-white border border-gray-200'
                 }`}
               >
                 <div className="whitespace-pre-wrap">{message.content}</div>
 
                 {/* SQL Details (collapsed by default) */}
                 {message.sqlQuery && (
-                  <div className="mt-3 pt-3 border-t border-gray-200">
+                  <div className={`mt-3 pt-3 border-t ${
+                    message.role === 'user'
+                      ? 'border-blue-500'
+                      : darkMode ? 'border-gray-600' : 'border-gray-200'
+                  }`}>
                     <button
                       onClick={() => toggleDetails(message.id)}
-                      className="text-sm text-gray-600 hover:text-gray-800 mb-2"
+                      className={`text-sm mb-2 ${
+                        message.role === 'user'
+                          ? 'text-blue-100 hover:text-white'
+                          : darkMode
+                            ? 'text-gray-400 hover:text-gray-200'
+                            : 'text-gray-600 hover:text-gray-800'
+                      }`}
                     >
                       {showDetails[message.id] ? '▼' : '▶'} Detalhes SQL
                     </button>
 
                     {showDetails[message.id] && (
                       <div className="mt-2">
-                        <div className="bg-gray-100 rounded p-3 relative">
+                        <div className={`rounded p-3 relative ${
+                          darkMode ? 'bg-gray-900' : 'bg-gray-100'
+                        }`}>
                           <button
                             onClick={() => copySql(message.sqlQuery!)}
-                            className="absolute top-2 right-2 text-xs bg-white px-2 py-1 rounded hover:bg-gray-200"
+                            className={`absolute top-2 right-2 text-xs px-2 py-1 rounded transition-colors ${
+                              darkMode
+                                ? 'bg-gray-700 hover:bg-gray-600 text-gray-200'
+                                : 'bg-white hover:bg-gray-200'
+                            }`}
                           >
                             📋 Copiar
                           </button>
-                          <pre className="text-xs overflow-x-auto">
+                          <pre className={`text-xs overflow-x-auto ${
+                            darkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>
                             <code>{message.sqlQuery}</code>
                           </pre>
                         </div>
 
                         {message.sqlResult && (
-                          <div className="mt-2 text-xs text-gray-600">
+                          <div className={`mt-2 text-xs ${
+                            message.role === 'user'
+                              ? 'text-blue-100'
+                              : darkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>
                             <div>✓ {message.sqlResult.length} consulta(s) executada(s)</div>
                             {message.sqlResult.map((result: any, i: number) => (
                               <div key={i} className="mt-1">
@@ -406,7 +468,11 @@ export default function ChatPage() {
 
           {loading && (
             <div className="flex justify-start">
-              <div className="bg-white border border-gray-200 rounded-lg p-4">
+              <div className={`rounded-lg p-4 ${
+                darkMode
+                  ? 'bg-gray-800 border border-gray-700 text-gray-100'
+                  : 'bg-white border border-gray-200'
+              }`}>
                 <div className="flex items-center space-x-2">
                   <div className="animate-pulse">⚡</div>
                   <span>Analisando dados...</span>
@@ -419,14 +485,22 @@ export default function ChatPage() {
         </div>
 
         {/* Input */}
-        <form onSubmit={handleSubmit} className="p-4 bg-white border-t border-gray-200">
+        <form onSubmit={handleSubmit} className={`p-4 border-t transition-colors duration-200 ${
+          darkMode
+            ? 'bg-gray-800 border-gray-700'
+            : 'bg-white border-gray-200'
+        }`}>
           <div className="flex space-x-2">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Digite sua pergunta sobre os dados..."
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={`flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${
+                darkMode
+                  ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
+                  : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'
+              }`}
               disabled={loading}
             />
             <button
@@ -437,7 +511,9 @@ export default function ChatPage() {
               {loading ? 'Processando...' : 'Enviar'}
             </button>
           </div>
-          <div className="mt-2 text-xs text-gray-500">
+          <div className={`mt-2 text-xs ${
+            darkMode ? 'text-gray-400' : 'text-gray-500'
+          }`}>
             Exemplos: "Qual o faturamento de janeiro?", "Top 5 médicos", "Compare com o ano passado"
           </div>
         </form>

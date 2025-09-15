@@ -353,7 +353,7 @@ export default function ChatPage() {
             <h1 className={`text-xl font-semibold ${
               darkMode ? 'text-white' : 'text-gray-900'
             }`}>Chat Analítico SQL</h1>
-            <div className="flex gap-2 items-center">
+            <div className="flex gap-2 items-center mr-12">
               <button
                 onClick={clearState}
                 className={`px-3 py-1 text-sm rounded-lg transition-colors ${

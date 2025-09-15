@@ -35,3 +35,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# test files
+test-data.xlsx
+test-*.xlsx
+*.log
+
+# uploads folder
+uploads/

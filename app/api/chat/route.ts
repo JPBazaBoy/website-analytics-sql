@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sendMessage, ChatMessage, SqlResult } from '@/lib/ai';
+import { sendMessage, ChatMessage } from '@/lib/ai';
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,28 +20,28 @@ export async function POST(request: NextRequest) {
     }
 
     // Converte o histórico para o formato esperado
-    const conversationHistory: ChatMessage[] = history.map((msg: {
-      role: 'user' | 'assistant';
-      content: string;
-      sqlResult?: SqlResult;
-      timestamp: string;
-    }) => ({
+    const conversationHistory: ChatMessage[] = history.map((msg: any) => ({
       role: msg.role,
       content: msg.content,
       sqlResult: msg.sqlResult,
-      timestamp: new Date(msg.timestamp)
+      timestamp: new Date(msg.timestamp || Date.now())
     }));
 
-    // Envia mensagem para Claude
-    const response = await sendMessage(message, conversationHistory);
+    // Envia mensagem usando o orquestrador
+    const result = await sendMessage(message, conversationHistory);
 
-    return NextResponse.json(response);
+    // Log para debug
+    console.log(`[CHAT API] Pergunta: ${message}`);
+    console.log(`[CHAT API] SQL geradas: ${result.sqlQueries.length}`);
+    console.log(`[CHAT API] Retries: ${result.retries}`);
+
+    return NextResponse.json(result);
 
   } catch (error) {
     console.error('Chat API error:', error);
-    
+
     let errorMessage = 'Erro interno do servidor';
-    
+
     if (error instanceof Error) {
       if (error.message.includes('API key')) {
         errorMessage = 'Erro de autenticação com Claude API';
@@ -49,11 +49,19 @@ export async function POST(request: NextRequest) {
         errorMessage = 'Quota da API excedida';
       } else if (error.message.includes('rate limit')) {
         errorMessage = 'Muitas requisições, tente novamente em alguns segundos';
+      } else {
+        errorMessage = error.message;
       }
     }
 
     return NextResponse.json(
-      { error: errorMessage },
+      {
+        error: errorMessage,
+        response: '',
+        sqlQueries: [],
+        sqlResults: [],
+        retries: 0
+      },
       { status: 500 }
     );
   }

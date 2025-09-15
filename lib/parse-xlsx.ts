@@ -145,12 +145,14 @@ export function validateRow(row: ParsedRow, rowIndex: number): ValidationResult 
     errors.push(`Linha ${rowIndex}: Erro ao validar data: ${error}`);
   }
 
-  // Warnings
-  if (!row.paciente || row.paciente.trim() === '') {
+  // Warnings - mais tolerante com espaços e valores vazios
+  if (!row.paciente || (typeof row.paciente === 'string' && row.paciente.trim() === '')) {
     warnings.push(`Linha ${rowIndex}: Paciente não informado`);
   }
 
-  if (!row.medico_solicitante || row.medico_solicitante.trim() === '') {
+  // Verificar médico solicitante com mais tolerância
+  const medicoStr = row.medico_solicitante ? String(row.medico_solicitante).trim() : '';
+  if (!medicoStr || medicoStr === '' || medicoStr === 'null' || medicoStr === 'undefined') {
     warnings.push(`Linha ${rowIndex}: Médico solicitante não informado`);
   }
 

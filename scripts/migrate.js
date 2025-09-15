@@ -9,10 +9,13 @@ const { Client } = require('pg');
 const fs = require('fs');
 const path = require('path');
 
+// Carregar variáveis de ambiente
+require('dotenv').config({ path: '.env.local' });
+
 // Configuração do banco de dados
 const dbConfig = {
   connectionString: process.env.DATABASE_URL || 'postgresql://localhost:5432/postgres',
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  ssl: { rejectUnauthorized: false }
 };
 
 async function runMigration() {

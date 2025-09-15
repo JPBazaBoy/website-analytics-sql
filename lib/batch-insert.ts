@@ -13,7 +13,7 @@ function getPool(): Pool {
     
     pool = new Pool({
       connectionString: databaseUrl,
-      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+      ssl: { rejectUnauthorized: false },
       max: 10, // Maximum number of connections in the pool
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 2000,
@@ -63,57 +63,85 @@ export async function insertExamesBatch(
       return result;
     }
 
-    // Prepare batch insert statement
-    const insertQuery = `
-      INSERT INTO exames (
-        data_exame, 
-        paciente, 
-        procedimento, 
-        plano, 
-        medico_solicitante, 
-        matmed, 
-        valor_convenio, 
-        valor_particular, 
-        total,
-        fonte
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-    `;
-
-    // Insert rows in batches to avoid overwhelming the database
-    const batchSize = 100;
+    // Insert rows in batches - MUITO mais eficiente
+    const batchSize = 100; // Tamanho ideal para INSERT em batch
     let insertedCount = 0;
+
+    console.log(`Inserindo ${validRows.length} registros em batches de ${batchSize}...`);
 
     for (let i = 0; i < validRows.length; i += batchSize) {
       const batch = validRows.slice(i, i + batchSize);
-      
-      for (const row of batch) {
-        try {
-          await client.query(insertQuery, [
-            row.data_exame,
-            row.paciente || null,
-            row.procedimento,
-            row.plano,
-            row.medico_solicitante || null,
-            row.matmed,
-            row.valor_convenio,
-            row.valor_particular,
-            row.total,
-            fonte || null
-          ]);
-          
-          insertedCount++;
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
-          
-          // Check for constraint violations
-          if (errorMessage.includes('chk_total_sum')) {
-            result.errors.push(`Erro de validação: Total deve ser igual à soma de convênio + particular`);
-          } else if (errorMessage.includes('chk_nonneg')) {
-            result.errors.push(`Erro de validação: Valores não podem ser negativos`);
-          } else if (errorMessage.includes('not null')) {
-            result.errors.push(`Erro de validação: Campos obrigatórios não podem ser vazios`);
-          } else {
-            result.errors.push(`Erro na inserção: ${errorMessage}`);
+
+      // Construir INSERT múltiplo em uma única query
+      const values: any[] = [];
+      const placeholders: string[] = [];
+
+      batch.forEach((row, index) => {
+        const offset = index * 10;
+        placeholders.push(
+          `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10})`
+        );
+
+        values.push(
+          row.data_exame,
+          row.paciente || null,
+          row.procedimento,
+          row.plano,
+          row.medico_solicitante || null,
+          row.matmed,
+          row.valor_convenio,
+          row.valor_particular,
+          row.total,
+          fonte || null
+        );
+      });
+
+      // Query única para inserir todo o batch
+      const batchInsertQuery = `
+        INSERT INTO exames (
+          data_exame, paciente, procedimento, plano, medico_solicitante,
+          matmed, valor_convenio, valor_particular, total, fonte
+        ) VALUES ${placeholders.join(', ')}
+      `;
+
+      try {
+        await client.query(batchInsertQuery, values);
+        insertedCount += batch.length;
+        console.log(`Batch ${Math.floor(i/batchSize) + 1}: ${batch.length} registros inseridos`);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+        console.error(`Erro no batch ${Math.floor(i/batchSize) + 1}:`, errorMessage);
+
+        // Se falhar o batch inteiro, tentar inserir linha por linha para identificar problemas
+        for (const row of batch) {
+          try {
+            await client.query(`
+              INSERT INTO exames (
+                data_exame, paciente, procedimento, plano, medico_solicitante,
+                matmed, valor_convenio, valor_particular, total, fonte
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            `, [
+              row.data_exame,
+              row.paciente || null,
+              row.procedimento,
+              row.plano,
+              row.medico_solicitante || null,
+              row.matmed,
+              row.valor_convenio,
+              row.valor_particular,
+              row.total,
+              fonte || null
+            ]);
+            insertedCount++;
+          } catch (rowError) {
+            const rowErrorMsg = rowError instanceof Error ? rowError.message : 'Erro desconhecido';
+            if (rowErrorMsg.includes('chk_total_sum')) {
+              result.errors.push(`Erro de validação: Total deve ser igual à soma de convênio + particular`);
+            } else if (rowErrorMsg.includes('chk_nonneg')) {
+              result.errors.push(`Erro de validação: Valores não podem ser negativos`);
+            } else {
+              result.errors.push(`Erro na linha: ${rowErrorMsg}`);
+            }
           }
         }
       }
@@ -202,13 +230,13 @@ export async function ensureMaterializedViews(): Promise<void> {
   try {
     // Check if materialized views exist
     const viewsQuery = `
-      SELECT viewname 
-      FROM pg_matviews 
-      WHERE viewname IN ('mv_resumo_mensal', 'mv_resumo_anual')
+      SELECT matviewname
+      FROM pg_matviews
+      WHERE matviewname IN ('mv_resumo_mensal', 'mv_resumo_anual')
     `;
-    
+
     const existingViews = await client.query(viewsQuery);
-    const existingViewNames = existingViews.rows.map(row => row.viewname);
+    const existingViewNames = existingViews.rows.map(row => row.matviewname);
 
     // Create mv_resumo_mensal if it doesn't exist
     if (!existingViewNames.includes('mv_resumo_mensal')) {
